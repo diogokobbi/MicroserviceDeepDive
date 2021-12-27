@@ -1,11 +1,12 @@
+using ShoppingCart.Extensions;
+
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
-builder.Services.Scan(selector => selector.FromAssemblyOf<Program>().AddClasses().AsImplementedInterfaces());
+builder.AddShoppingCartServices();
 
 var app = builder.Build();
 
-app.MapGet("/", () => "System running!");
+//app.MapGet("/", () => "System running!");
 
 app.UseHttpsRedirection();
 app.UseRouting();

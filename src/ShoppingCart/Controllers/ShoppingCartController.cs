@@ -1,8 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using ShoppingCart.Domain;
+using ShoppingCart.Clients;
+using ShoppingCart.Events;
 using ShoppingCart.Services;
-
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
 namespace ShoppingCart.Controllers
 {
@@ -11,35 +10,53 @@ namespace ShoppingCart.Controllers
     public class ShoppingCartController : ControllerBase
     {
         private readonly IShoppingCartStore shoppingCartStore;
+        private readonly IProductCatalogClient productCatalogClient;
+        private readonly IEventStore eventStore;
 
-        public ShoppingCartController(IShoppingCartStore shoppingCartStore)
+        public ShoppingCartController(
+                      IShoppingCartStore shoppingCartStore,
+                      IProductCatalogClient productCatalogClient,
+                      IEventStore eventStore)
         {
             this.shoppingCartStore = shoppingCartStore;
+            this.productCatalogClient = productCatalogClient;
+            this.eventStore = eventStore;
         }
 
-        // GET api/<ShoppingCartController>/5
         [HttpGet("{userId:int}")]
         public Domain.ShoppingCart Get(int userId)
         {
             return this.shoppingCartStore.Get(userId);
         }
 
-        // POST api/<ShoppingCartController>
-        [HttpPost]
-        public void Post([FromBody] string value)
+        [HttpPost("{userId:int}/items")]
+        public async Task<Domain.ShoppingCart> Post(int userId, [FromBody] ItemRequest request)
         {
+            var shoppingCart = shoppingCartStore.Get(userId);
+            var shoppingCartItems = await this.productCatalogClient.GetShoppingCartItems(request.productIds);
+            shoppingCart.AddItems(shoppingCartItems);
+            shoppingCartStore.Save(shoppingCart);
+            return shoppingCart;
         }
 
-        // PUT api/<ShoppingCartController>/5
         [HttpPut("{id}")]
         public void Put(int id, [FromBody] string value)
         {
         }
 
-        // DELETE api/<ShoppingCartController>/5
-        [HttpDelete("{id}")]
-        public void Delete(int id)
+
+        [HttpDelete("{userid:int}/items")]
+        public Domain.ShoppingCart Delete(int userId, [FromBody] ItemRequest request)
         {
+            var shoppingCart = this.shoppingCartStore.Get(userId);
+            shoppingCart.RemoveItems(request.productIds);
+            this.shoppingCartStore.Save(shoppingCart);
+            return shoppingCart;
         }
+    }
+
+    public class ItemRequest
+    {
+        public int[] productIds { get; set; }
     }
 }
